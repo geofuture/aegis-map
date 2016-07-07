@@ -1,0 +1,455 @@
+ <% if(session.authenticated) { %> 
+   <script src="/js/leaflet/leaflet.js"></script>
+  <script src="http://matchingnotes.com/javascripts/leaflet-google.js"></script>
+  <script src="http://maps.google.com/maps/api/js?v=3.2&sensor=false"></script>
+
+<!-- Leaflet.Draw  -->
+    <script src="/js/leaflet/plugins/draw/src/Leaflet.draw.js"></script>
+    <link rel="stylesheet" href="/js/leaflet/plugins/draw/dist/leaflet.draw.css" />
+    <link rel="stylesheet" href="/js/leaflet/plugins/label/dist/leaflet.label.css" />
+   <script src="/js/leaflet/plugins/label/src/Label.js"></script>
+  <script src="/js/leaflet/plugins/label/src/BaseMarkerMethods.js"></script>
+  <script src="/js/leaflet/plugins/label/src/Marker.Label.js"></script>
+  <script src="/js/leaflet/plugins/label/src/CircleMarker.Label.js"></script>
+  <script src="/js/leaflet/plugins/label/src/Path.Label.js"></script>
+  <script src="/js/leaflet/plugins/label/src/Map.Label.js"></script>
+  <script src="/js/leaflet/plugins/label/src/FeatureGroup.Label.js"></script>    
+    <script src="/js/leaflet/plugins/draw/src/Toolbar.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/Tooltip.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/ext/GeometryUtil.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/ext/LatLngUtil.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/ext/LineUtil.Intersect.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/ext/Polygon.Intersect.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/ext/Polyline.Intersect.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/DrawToolbar.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.Feature.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.SimpleShape.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.Polyline.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.Circle.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.Marker.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.Polygon.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/draw/handler/Draw.Rectangle.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/EditToolbar.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/EditToolbar.Edit.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/EditToolbar.Delete.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/Control.Draw.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/Edit.Poly.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/Edit.SimpleShape.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/Edit.Circle.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/Edit.Rectangle.js"></script>
+    <script src="/js/leaflet/plugins/draw/src/edit/handler/Edit.Marker.js"></script>
+    <link rel="stylesheet" href="/js/leaflet/plugins/measure/leaflet.measure/leaflet.measure.css" />
+    <script src="/js/leaflet/plugins/measure/leaflet.measure/leaflet.measure.js"></script>
+    <script src="/js/leaflet/plugins/easybutton/easy-button.js"></script>
+    <link rel="stylesheet" href="/js/leaflet/plugins/easybutton/easy-button.css" />
+<!-- Leaflet.Draw  -->
+<link rel="stylesheet" href="/js/leaflet/plugins/MeasureControl/leaflet.measurecontrol.css" />
+<script src="/js/leaflet/plugins/MeasureControl/leaflet.measurecontrol.js"></script>
+
+<div align='center' id='state'><h2>Create/View Mode</h2></div>
+<div class='row'>
+
+<div class='col-md-12'>
+
+  <div id="map" style="height: 700px;border:1px solid black;" ></div>
+
+</div>
+
+</div>
+<script type="text/javascript"> 
+var mapLayer = new L.Google('ROADMAP');
+var satLayer = new L.Google('HYBRID');
+var layergroup = new L.layerGroup();
+var layergroup1 = new L.layerGroup();
+var allgroup = new L.layerGroup();
+var selectedFeature = null;
+var editmode = false;
+var label1 = [];
+
+
+var map = L.map('map', {
+  center: [ 13.75272, 100.54688],
+  zoom: 6,
+  layers: [mapLayer]
+}); 
+drawnItems = L.featureGroup().addTo(map);
+drawControl = new L.Control.Draw({
+          draw : {
+                position : 'topleft',
+                polygon : true,
+                polyline : true,
+                rectangle : true,
+                circle : true,
+                marker :true
+            },
+           // edit: { featureGroup: drawnItems }
+});
+L.control.scale().addTo(map);
+L.Control.measureControl({position: 'bottomleft'}).addTo(map);
+map.options.maxZoom = 20;
+//=========================================
+map.on('draw:created', function(event) {  
+            var layer = event.layer;
+            var type = event.layerType;
+            drawnItems.addLayer(layer);
+            if (type === 'polygon') {
+                var Area = L.GeometryUtil.geodesicArea(layer.getLatLngs());
+                var area = Area/1000000;
+                var shape = layer.toGeoJSON();
+                var shape_for_db = JSON.stringify(shape);
+                $('#txtarea').val(area);
+                $('#txtgeojson').val(shape_for_db);
+                //bootbox.alert("Hello world!"); 
+                $('#addForm').modal();
+              }
+});
+
+
+var baseLayers = {
+    "Street Map": mapLayer,
+    "Satellite Map": satLayer,
+};
+
+
+var home = {
+  lat: 13.75272, 
+  lng: 100.54688,
+  zoom: 6
+}; 
+//======================================================= Easy Button ============================
+//=========================================== draw  =========
+var polygonbut = L.easyButton('fa fa-connectdevelop',function(btn,map){
+  new L.Draw.Polygon(map, drawControl.options.polygon).enable();
+},'Polygon').addTo(map);
+var circlebut = L.easyButton('fa fa-circle-o',function(btn,map){
+  new L.Draw.Circle(map, drawControl.options.circle).enable();
+},'Circle').addTo(map);
+var rectanglebut = L.easyButton('fa fa-square-o',function(btn,map){
+  new L.Draw.Rectangle(map, drawControl.options.regtangle).enable();
+},'Rectangle').addTo(map);
+var polylinebut = L.easyButton('fa fa-minus',function(btn,map){
+  new L.Draw.Polyline(map, drawControl.options.polyline).enable();
+},'Polyline').addTo(map);
+var markerbut = L.easyButton('fa fa-map-marker',function(btn,map){
+  new L.Draw.Marker(map, drawControl.options.marker).enable();
+},'Marker').addTo(map);
+
+var drawBar = L.easyBar([ polygonbut, circlebut, rectanglebut,polylinebut, markerbut  ]);
+drawBar.addTo(map);
+//=========================================== home =========
+L.easyButton('fa-home',function(btn,map){
+  map.setView([home.lat, home.lng], home.zoom);
+},'Zoom To Home').addTo(map);
+//============================================= save =========
+var savebut=L.easyButton('fa fa-floppy-o',function(btn,map){
+         if(selectedFeature)
+                    {
+                            bootbox.confirm("Do you want to Save ?", function(result) {
+                                    if(result==true)
+                                    {
+                                      selectedFeature.editing.disable();
+                                      var shape1 = selectedFeature.toGeoJSON();                   
+                                      var Area = L.GeometryUtil.geodesicArea(selectedFeature.getLatLngs());
+                                       var area = Area/1000000;
+                                      shape1.properties['area'] = area-0;
+                                      var shape_for_db1 = JSON.stringify(shape1);
+                                      io.socket.get('/map/update',{'name':shape1.properties.name,'data':shape_for_db1}, function(data) {
+                                            bootbox.alert("Update Success.");
+                                      });
+                                    }
+                            });
+                            
+                    }
+},'Save Polygon');
+//======================================= edit/view ========
+var toggle = L.easyButton({
+  states: [{
+    stateName: 'edit-mode',
+    icon: 'fa fa-pencil-square-o',
+    title: 'Edit Mode',
+    onClick: function(control) {
+      editmode = true;
+      control.state('view-mode');
+      delbut.enable();savebut.enable();
+      polygonbut.disable();circlebut.disable();rectanglebut.disable();polylinebut.disable();markerbut.disable();
+      $("#state").html("<h2>Edit Mode</h2>");
+    }
+  }, {
+    icon: 'fa fa-eye',
+    stateName: 'view-mode',
+    onClick: function(control) {
+      editmode = false;
+      control.state('edit-mode');
+      delbut.disable();savebut.disable();
+      polygonbut.enable();circlebut.enable();rectanglebut.enable();polylinebut.enable();markerbut.enable();
+      $("#state").html("<h2>Create/View Mode</h2>");
+      if(selectedFeature){
+        selectedFeature.editing.disable();
+      }
+    },
+    title: 'View Mode'
+  }]
+});
+//toggle.addTo(map);
+
+//===================================== delete ===========
+var delbut=L.easyButton('fa fa-trash',function(btn,map){
+         if(selectedFeature)
+                    {
+                            bootbox.confirm("Do you want to Delete ?", function(result) {
+                                    if(result==true)
+                                    {
+                                      selectedFeature.editing.disable();
+                                      var shape1 = selectedFeature.toGeoJSON();
+                                      var shape_for_db1 = JSON.stringify(shape1);
+                                      io.socket.get('/map/delete',{'name':shape1.properties.name}, function(data) {
+                                            bootbox.alert("Delete Success.");
+                                      });
+                                    }
+                            });
+                            
+                    }
+},'Save Polygon');
+
+var editBar = L.easyBar([ toggle, savebut, delbut ]);
+editBar.addTo(map);
+//=================================================================================
+$(document).ready(function(){
+delbut.disable();savebut.disable();
+
+map.on('click',function(e){
+    if(selectedFeature){
+        selectedFeature.editing.disable();
+    }
+});
+
+
+	$('#btsave').on('click',function(){
+		var data1 = JSON.parse($('#txtgeojson').val());
+		var name1 = $('#txtname').val();
+		var detail1 = $('#txtdetail').val();
+		var area1 = $('#txtarea').val();
+            if(name1!='')
+            {
+		data1.properties['name'] = name1;
+		data1.properties['detail'] = detail1;
+		data1.properties['area'] = area1-0;
+		var shape_for_db = JSON.stringify(data1);
+		$.get('/geo/create',{data:shape_for_db},function(data){
+			drawnItems.clearLayers();
+			$('#txtname').val('');$('#txtdetail').val('');$('#txtarea').val('');$('#txtgeojson').val('');
+			bootbox.alert('Success.');$('#addForm').modal('toggle');
+
+		});	
+            }else{
+              bootbox.alert("Please Input Name !!!");
+            }
+	});	
+  $('#btcancel').on('click',function(){
+    var data1 = JSON.parse($('#txtgeojson').val());
+    map.removeLayer(drawnItems);
+  }); 
+
+io.socket.get('/map/check',{'data':'1'}, function(data) {
+//=============================================
+
+
+var home1 = new L.GeoJSON(data.map,{
+  onEachFeature:onEachFeature,
+  style: function (feature) {
+      return {
+            weight: 1,
+            opacity: 1,
+            color: 'blueviolet',
+            fillColor: 'plum',
+            fillOpacity: 0.5,
+       };
+      },
+
+}).addTo(map);
+
+layergroup.addLayer(home1);
+
+function onEachFeature(feature, layer) {
+    if (feature.properties) {
+        var mid = layer.getBounds().getCenter();
+
+        layer.bindPopup("Name : " +  feature.properties.name + "<br> Detail : " + feature.properties.detail + "<br> Area : " + feature.properties.area );
+
+      label1[feature.properties.name] = new L.Label();
+      label1[feature.properties.name].setContent(feature.properties.name);
+      label1[feature.properties.name].setLatLng(mid);
+      map.showLabel(label1[feature.properties.name]);
+      layergroup1.addLayer(label1[feature.properties.name]);
+       layer.on('click', function(e){
+       if(editmode)
+       {
+       if(selectedFeature)
+                    {
+                            selectedFeature.editing.disable();
+                    }
+          selectedFeature = e.target;
+          e.target.editing.enable();
+        }
+       });  
+
+    }
+}
+//=============================================
+});
+//io.socket.get('/map/showmap');
+io.socket.on('showmap', function (data) {
+   //================== show polygon from mongoDB ==============
+var home1 = new L.GeoJSON(data.map,{
+  onEachFeature:onEachFeature1,
+  style: function (feature) {
+      return {
+            weight: 1,
+            opacity: 1,
+            color: 'blueviolet',
+            fillColor: 'plum',
+            fillOpacity: 0.5,
+       };
+      },
+
+}).addTo(map);
+layergroup.addLayer(home1);
+function onEachFeature1(feature, layer) {
+    if (feature.properties) {
+        var mid = layer.getBounds().getCenter();
+
+        layer.bindPopup("Name : " +  feature.properties.name + "<br> Detail : " + feature.properties.detail + "<br> Area : " + feature.properties.area );
+
+      label1[feature.properties.name] = new L.Label();
+      label1[feature.properties.name].setContent(feature.properties.name);
+      label1[feature.properties.name].setLatLng(mid);
+      map.showLabel(label1[feature.properties.name]);
+      layergroup1.addLayer(label1[feature.properties.name]);
+       layer.on('click', function(e){
+       if(editmode)
+       {
+       if(selectedFeature)
+                    {
+                            selectedFeature.editing.disable();
+                    }
+          selectedFeature = e.target;
+          e.target.editing.enable();
+        };
+       });  
+    }
+}
+   //========================================================
+})
+
+io.socket.on('updatemap', function (data) {
+
+var match = layergroup.eachLayer(function(layer) {
+    layer.eachLayer(function(layer1){
+        if(layer1.feature.properties.name==data.name){
+               map.removeLayer(layer1); 
+               map.removeLayer(label1[data.name]);
+   //================== show polygon from mongoDB ==============
+var home1 = new L.GeoJSON(data.data,{
+  onEachFeature:onEachFeature1,
+  style: function (feature) {
+      return {
+            weight: 1,
+            opacity: 1,
+            color: 'blueviolet',
+            fillColor: 'plum',
+            fillOpacity: 0.5,
+       };
+      },
+
+}).addTo(map);
+layergroup.addLayer(home1);
+function onEachFeature1(feature, layer) {
+    if (feature.properties) {
+        var mid = layer.getBounds().getCenter();
+        //layer.bindPopup("<b>" + feature.properties.name + "</b> is " + mid );
+        layer.bindPopup("Name : " +  feature.properties.name + "<br> Detail : " + feature.properties.detail + "<br> Area : " + feature.properties.area);
+      label1[feature.properties.name] = new L.Label();
+      label1[feature.properties.name].setContent(feature.properties.name);
+      label1[feature.properties.name].setLatLng(mid);
+      map.showLabel(label1[feature.properties.name]);
+      layergroup1.addLayer(label1[feature.properties.name]);
+       layer.on('click', function(e){
+       if(selectedFeature)
+                    {
+                            selectedFeature.editing.disable();
+                    }
+          selectedFeature = e.target;
+          e.target.editing.enable();
+       });  
+    }
+}
+   //========================================================
+
+        }
+        console.log(layer1);
+    });
+});
+
+});
+
+io.socket.on('deletemap', function (data) {
+
+var match = layergroup.eachLayer(function(layer) {
+    layer.eachLayer(function(layer1){
+        if(layer1.feature.properties.name==data.name){
+               map.removeLayer(layer1); 
+               map.removeLayer(label1[data.name]);
+        }
+        console.log(layer1);
+    });
+});
+
+});
+
+
+});
+layergroup.addTo(map);
+allgroup.addLayer(layergroup);
+allgroup.addLayer(layergroup1);
+allgroup.addTo(map);
+var overlays = {
+  "Polygons": allgroup
+};
+L.control.layers(baseLayers,overlays).addTo(map);
+</script>
+<div class='row'>
+<div class='col-md-1'></div>
+<div class='col-md-12'>
+<div id='show_data'></div>
+</div>
+<div class='col-md-1'></div>
+</div>
+
+<% }else{ %>
+<script>window.location.href="/session/new";</script>
+<% } %>
+
+<div id="addForm" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Create Data</h4>
+      </div>
+      <div class="modal-body">
+        <table>
+        <tr><td>Name</td><td>&nbsp;&nbsp;<input type="text" size=20 name="txtname" id="txtname" /></td></tr>
+        <tr><td>Detail</td><td>&nbsp;&nbsp;<input type="text" size=20 name="txtdetail" id="txtdetail" /></td></tr>
+        <tr><td>Area</td><td>&nbsp;&nbsp;<input type="text" size=20 name="txtarea" id="txtarea" /></td></tr>
+        <tr><td>GeoJson</td><td>&nbsp;&nbsp;<input type="text" size=20 name="txtgeojson" id="txtgeojson" /></td></tr>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success" id="btsave">Submit</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal" id="btcancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

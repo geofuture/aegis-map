@@ -1,0 +1,12 @@
+<div class='container'>
+<form action="/user/update/<%= user.id %>" method="POST" class="form-signin">
+	<h2>Create an account</h2>
+	<input type="text" class="form-control" value="<%= user.name %>" name="name">
+	<input type="text" class="form-control" value="<%= user.email %>"  name="email">
+	<input type="password" class="form-control" value="<%= user.password %>" name="password" id="password">
+	<input type="password" class="form-control" value="<%= user.password %>" name="confirmation">
+	<br>
+	<input type="submit" class="btn btn-success" value="Update Account">
+	<input type="hidden" name="_csrf" value="<%= _csrf %>">
+</form>
+</div>
